@@ -1,7 +1,8 @@
 "use client";
 
 import { useState, useCallback } from "react";
-import { translateText, TranslationResponse } from "@/lib/api";
+import { translateText } from "@/lib/api";
+import type { TranslationResponse } from "@/lib/api";
 import { LANGUAGES, TONE_OPTIONS } from "@/lib/options";
 import TranslationResult from "./TranslationResult";
 import { Languages, ArrowRightLeft, Loader2 } from "lucide-react";

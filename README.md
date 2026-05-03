@@ -1,28 +1,29 @@
 # Evans Language Translator
 
-AI-powered language translation with pronunciation guidance, text-to-speech, and voice-to-text translation mode.
+AI-powered translation with pronunciation guidance, live speech dictation, and optional text-to-speech playback.
 
 ## Overview
 
 Evans Language Translator is a full-stack MVP that lets users:
 
 - translate typed text
-- record speech and transcribe it
-- translate the transcript into another language
-- view IPA and simple pronunciation guidance
-- optionally generate spoken audio for the translated result
+- dictate speech live in the browser with the Web Speech API
+- edit the live transcript before sending it to the backend
+- generate translations, IPA, pronunciation guidance, and usage notes
+- optionally play translated voiceover audio
 
-The Next.js frontend talks to a FastAPI backend. The OpenAI API key stays on the backend only and is never exposed to the browser.
+The frontend is built with Next.js and the backend uses FastAPI plus the OpenAI API. The OpenAI API key stays on the backend only and is never exposed to the browser.
 
 ## Features
 
 - Text Translate mode for typed input
-- Voice Translate mode for microphone recording
+- Live Voice Dictation mode using the browser Web Speech API
 - Translation tone selection: `neutral`, `formal`, `informal`
 - IPA transcription and simple pronunciation guidance
 - Grammar and usage notes
 - On-demand text-to-speech playback
-- Optional automatic voiceover after voice translation
+- Optional automatic voiceover after a translation result appears
+- Optional auto-translate after dictation stops
 - Dark mode toggle
 - In-browser audio caching so replay does not re-call TTS during the current session
 
@@ -69,6 +70,7 @@ evans-language-translator/
 │   │   └── page.tsx
 │   ├── components/
 │   │   ├── AudioRecorder.tsx
+│   │   ├── LiveSpeechInput.tsx
 │   │   ├── ThemeToggle.tsx
 │   │   ├── TranslationResult.tsx
 │   │   ├── TranslatorCard.tsx
@@ -89,7 +91,7 @@ OPENAI_API_KEY=your_openai_api_key_here
 OPENAI_TRANSLATION_MODEL=gpt-4o-mini
 OPENAI_TRANSCRIPTION_MODEL=gpt-4o-mini-transcribe
 OPENAI_TTS_MODEL=gpt-4o-mini-tts
-OPENAI_MODEL=gpt-4o-mini
+OPENAI_MODEL=gpt-5.4-mini
 MAX_TTS_TEXT_LENGTH=2000
 MAX_AUDIO_FILE_SIZE_BYTES=26214400
 MAX_RECORDING_SECONDS=30
@@ -141,30 +143,46 @@ Frontend URL:
 
 - `http://localhost:3000`
 
-## Voice Translate Mode
+## Vercel Deployment
 
-Voice Translate Mode records audio in the browser first and uploads it only after recording stops. That keeps the MVP simpler and avoids continuous streaming cost.
+This repository now includes a root `vercel.json` using Vercel Services so the Next.js frontend and FastAPI backend deploy as one Vercel project.
 
-Voice flow:
+Service layout:
 
-1. Choose source language, target language, tone, and optional voiceover settings.
-2. Click `Start Recording`.
-3. Speak into the microphone.
-4. Click `Stop Recording`.
-5. Review the audio preview.
-6. Click `Translate Speech`.
-7. The backend transcribes the recording, translates the transcript, and returns pronunciation guidance.
-8. If automatic voiceover is enabled, the frontend calls `/api/text-to-speech` for the translated text and plays it back.
+- frontend: `frontend/` mounted at `/`
+- backend: `backend/main.py` mounted at `/backend`
 
-## Microphone Permissions
+In the Vercel dashboard:
 
-The browser will ask for microphone access the first time Voice Translate mode starts recording.
+1. Keep the project Root Directory as `./`.
+2. Set the Framework Preset to `Services`.
+3. Add this frontend environment variable:
+   `NEXT_PUBLIC_API_BASE_URL=/backend`
+4. Add your backend environment variables:
+   `OPENAI_API_KEY`, `OPENAI_TRANSLATION_MODEL`, `OPENAI_TRANSCRIPTION_MODEL`, `OPENAI_TTS_MODEL`, and any other backend settings you need.
 
-- If the user denies access, recording cannot start.
-- The app surfaces a clear permission error in the UI.
-- No microphone audio is continuously streamed to OpenAI.
+After deployment, your backend endpoints will live under the same domain, for example:
 
-## Supported Languages
+- `/backend/health`
+- `/backend/api/translate`
+- `/backend/api/text-to-speech`
+
+## Live Speech-to-Text Translator
+
+Live Voice Dictation uses the browser Web Speech API, not the backend, for real-time speech recognition.
+
+- Works best in Chrome or Edge.
+- No live audio is streamed to FastAPI or OpenAI.
+- Only the final text is sent to the backend when the user clicks `Translate`.
+- Translation and text-to-speech still require `OPENAI_API_KEY` on the backend.
+
+### Supported Live Dictation Languages for MVP
+
+- English: `en-US`
+- French: `fr-FR`
+- Spanish: `es-ES`
+
+### Supported Translation Languages
 
 - English
 - French
@@ -173,7 +191,35 @@ The browser will ask for microphone access the first time Voice Translate mode s
 - Hiligaynon
 - Cebuano
 
-## Supported Voice Options
+### Live Dictation Flow
+
+1. Switch to `Live Voice Dictation`.
+2. Click `Allow Microphone Access`.
+3. Choose a microphone if multiple inputs are available.
+4. Choose a source speech language and target translation language.
+5. Click `Start Listening`.
+6. Speak into the microphone and watch the text update live.
+7. Click `Stop Listening`.
+8. Edit the transcript if needed.
+9. Click `Translate`.
+10. Review the translation, IPA, pronunciation guide, and notes.
+11. Click `Play Voiceover` if you want translated audio.
+
+Optional behavior:
+
+- Enable `Auto-translate after I stop speaking` to run one translation request after dictation ends.
+- Enable `Generate voiceover automatically` to generate translated audio as soon as a translation result appears.
+- Use the microphone dropdown to prefer a specific audio input when the browser supports track-based speech recognition startup.
+
+## Text-to-Speech
+
+The app uses the backend `POST /api/text-to-speech` endpoint to generate MP3 audio for translated text.
+
+- The OpenAI API key stays on the backend.
+- Audio is generated only when the user clicks play, or when automatic voiceover is enabled.
+- Generated audio is cached in browser memory for the current session to avoid repeat API calls.
+
+### Supported Voice Options
 
 - `alloy`
 - `ash`
@@ -186,23 +232,11 @@ The browser will ask for microphone access the first time Voice Translate mode s
 - `sage`
 - `shimmer`
 
-## Supported Audio File Types
-
-The backend validates these uploaded audio MIME types for the MVP:
-
-- `audio/webm`
-- `audio/wav`
-- `audio/mpeg`
-- `audio/mp4`
-- `audio/ogg`
-
-Browser recording is optimized for `audio/webm` when MediaRecorder supports it.
-
 ## API Endpoints
 
 ### `POST /api/translate`
 
-Translate typed text and return pronunciation guidance.
+Translate text and return pronunciation guidance.
 
 Request:
 
@@ -229,9 +263,28 @@ Response:
 }
 ```
 
+### `POST /api/text-to-speech`
+
+Generate MP3 audio for translated text.
+
+Request:
+
+```json
+{
+  "text": "Vous devez prendre ce medicament.",
+  "language": "French",
+  "voice": "coral"
+}
+```
+
+Success response:
+
+- `200 OK`
+- content type: `audio/mpeg`
+
 ### `POST /api/transcribe`
 
-Transcribe recorded speech into text.
+Optional backend speech-to-text endpoint for recorded-audio workflows.
 
 Request: `multipart/form-data`
 
@@ -249,7 +302,7 @@ Response:
 
 ### `POST /api/speech-translate`
 
-Transcribe uploaded speech and translate it in one request.
+Optional backend recorded-audio translation endpoint.
 
 Request: `multipart/form-data`
 
@@ -275,32 +328,23 @@ Response:
 }
 ```
 
-### `POST /api/text-to-speech`
+## Supported Audio File Types
 
-Generate MP3 audio for translated text.
+The backend still supports these uploaded audio MIME types for recorded-audio workflows:
 
-Request:
-
-```json
-{
-  "text": "Vous devez prendre ce medicament.",
-  "language": "French",
-  "voice": "coral"
-}
-```
-
-Success response:
-
-- `200 OK`
-- content type: `audio/mpeg`
+- `audio/webm`
+- `audio/wav`
+- `audio/mpeg`
+- `audio/mp4`
+- `audio/ogg`
 
 ## Cost Controls
 
-- Microphone audio is not streamed continuously to OpenAI.
-- Recording is capped at 30 seconds for the MVP.
+- Live dictation stays in the browser and does not continuously call OpenAI.
+- Translation runs only when the user clicks `Translate`, or once after dictation stops if auto-translate is enabled.
 - TTS is generated only when:
   - the user clicks the play button, or
-  - the user enables automatic voiceover in Voice Translate mode.
+  - the user enables automatic voiceover for a translation result.
 - Generated MP3 audio is cached in browser memory for the current session.
 
 ## Local Testing
@@ -309,27 +353,50 @@ Success response:
 
 1. Start the backend on `127.0.0.1:8010`.
 2. Start the frontend on `localhost:3000`.
-3. Open Text Translate mode.
+3. Open `Text Translate`.
 4. Enter text, choose languages, and click `Translate`.
 5. Optionally click `Play Pronunciation`.
 
-### Voice Translate
+### Live Voice Dictation
 
 1. Start the backend on `127.0.0.1:8010`.
 2. Start the frontend on `localhost:3000`.
-3. Switch to Voice Translate mode.
-4. Allow microphone access.
-5. Record a short phrase and stop recording.
-6. Click `Translate Speech`.
-7. Review transcript, translation, IPA, and notes.
-8. If voiceover is enabled, wait for the audio player to appear and play.
+3. Open `Live Voice Dictation`.
+4. Use Chrome or Edge.
+5. Click `Allow Microphone Access`.
+6. If several microphones appear, choose the one you want to try first.
+7. Choose `English`, `French`, or `Spanish` as the source speech language.
+8. Click `Start Listening` and speak a short phrase.
+9. Click `Stop Listening`.
+10. Edit the transcript if needed.
+11. Click `Translate`.
+12. Review the translation, IPA, pronunciation guide, and notes.
+13. Click `Play Voiceover` or enable automatic voiceover.
 
 ## Troubleshooting
+
+### Live speech recognition is unsupported
+
+- Use Chrome or Microsoft Edge.
+- Safari and Firefox may not fully support the Web Speech API recognition flow used by this MVP.
+- If live recognition is unavailable, type into the transcript box manually.
 
 ### Microphone permission denied
 
 - Re-enable microphone permission in the browser site settings.
 - Refresh the page and try again.
+- Click `Allow Microphone Access` again after permission is restored.
+
+### No speech detected
+
+- Keep the microphone close and speak clearly.
+- Check that the selected speech language matches the language you are speaking.
+
+### Wrong microphone is being used
+
+- Open `Live Voice Dictation` and click `Allow Microphone Access` to reveal available microphones.
+- Choose a different microphone from the dropdown and start listening again.
+- If Chrome or Edge still uses the wrong input, switch the browser or system default microphone and retry.
 
 ### Failed to fetch or backend unreachable
 
@@ -350,8 +417,8 @@ Success response:
 
 ### Unsupported audio format
 
-- Use browser recording from the built-in recorder when possible.
-- If uploading or replaying custom recordings later, prefer `webm`, `wav`, `mp3`, `mp4`, or `ogg`.
+- Live dictation mode does not upload live microphone audio.
+- For optional recorded-audio backend endpoints, prefer `webm`, `wav`, `mp3`, `mp4`, or `ogg`.
 
 ## Future Improvements
 
@@ -360,4 +427,4 @@ Success response:
 - dictionary-backed IPA lookup with Epitran, eSpeak NG, or Wiktextract
 - user accounts and saved phrases
 - document translation for PDF and Word files
-- more languages and stronger speech-language detection
+- broader speech recognition language coverage

@@ -1,82 +1,102 @@
 "use client";
 
 import { useCallback, useState } from "react";
-import { Mic2, Loader2 } from "lucide-react";
+import { Loader2, Mic2 } from "lucide-react";
 
-import AudioRecorder, { RecordedAudio } from "./AudioRecorder";
+import LiveSpeechInput from "./LiveSpeechInput";
 import TranslationResult from "./TranslationResult";
 import VoiceSelector from "./VoiceSelector";
 import {
-  translateSpeech,
-  SpeechTranslationResponse,
+  translateText,
   TTS_VOICES,
-  TtsVoice,
 } from "@/lib/api";
-import { LANGUAGES, MAX_RECORDING_SECONDS, TONE_OPTIONS } from "@/lib/options";
+import type { TranslationDisplayResult, TtsVoice } from "@/lib/api";
+import {
+  LANGUAGES,
+  LIVE_SPEECH_LANGUAGES,
+  TONE_OPTIONS,
+  getLiveSpeechLanguageOption,
+} from "@/lib/options";
+import type { LiveSpeechLocale } from "@/lib/options";
 
 export default function VoiceTranslateCard() {
-  const [sourceLanguage, setSourceLanguage] = useState("French");
+  const [recognitionLanguageCode, setRecognitionLanguageCode] =
+    useState<LiveSpeechLocale>("fr-FR");
   const [targetLanguage, setTargetLanguage] = useState("English");
   const [tone, setTone] = useState("neutral");
   const [voice, setVoice] = useState<TtsVoice>("coral");
   const [generateVoiceover, setGenerateVoiceover] = useState(true);
-  const [recording, setRecording] = useState<RecordedAudio | null>(null);
+  const [autoTranslateAfterStop, setAutoTranslateAfterStop] = useState(false);
+  const [transcript, setTranscript] = useState("");
+  const [isListening, setIsListening] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [result, setResult] = useState<SpeechTranslationResponse | null>(null);
+  const [result, setResult] = useState<TranslationDisplayResult | null>(null);
 
   const resetResult = useCallback(() => {
     setError(null);
     setResult(null);
   }, []);
 
-  const handleRecordingReady = useCallback((nextRecording: RecordedAudio) => {
-    setRecording(nextRecording);
-    setError(null);
-    setResult(null);
-  }, []);
+  const handleTranscriptChange = useCallback(
+    (nextTranscript: string) => {
+      setTranscript(nextTranscript);
+      resetResult();
+    },
+    [resetResult]
+  );
 
-  const handleTranslateSpeech = useCallback(async () => {
-    if (!recording) {
-      setError("Record some audio before translating.");
-      return;
-    }
+  const handleTranslate = useCallback(
+    async (overrideTranscript?: string) => {
+      const textToTranslate = (overrideTranscript ?? transcript).trim();
 
-    if (sourceLanguage === targetLanguage) {
-      setError("Source and target languages must be different.");
-      return;
-    }
+      if (!textToTranslate) {
+        setError("Speak or type some text before translating.");
+        return;
+      }
 
-    setLoading(true);
-    setError(null);
-    setResult(null);
-
-    try {
-      const response = await translateSpeech({
-        audio: recording.blob,
-        filename: recording.filename,
-        source_language: sourceLanguage,
-        target_language: targetLanguage,
-        tone,
-        generate_voiceover: generateVoiceover,
-        voice,
-      });
-      setResult(response);
-    } catch (err) {
-      setError(
-        err instanceof Error ? err.message : "An unexpected error occurred."
+      const selectedRecognitionLanguage = getLiveSpeechLanguageOption(
+        recognitionLanguageCode
       );
-    } finally {
-      setLoading(false);
-    }
-  }, [
-    generateVoiceover,
-    recording,
-    sourceLanguage,
-    targetLanguage,
-    tone,
-    voice,
-  ]);
+      const sourceLanguage = selectedRecognitionLanguage.sourceLanguage;
+
+      if (sourceLanguage === targetLanguage) {
+        setError("Choose a different target language to translate the live transcript.");
+        return;
+      }
+
+      setLoading(true);
+      setError(null);
+      setResult(null);
+
+      try {
+        const response = await translateText({
+          text: textToTranslate,
+          source_language: sourceLanguage,
+          target_language: targetLanguage,
+          tone,
+        });
+
+        setTranscript(textToTranslate);
+        setResult({
+          source_language: response.source_language,
+          target_language: response.target_language,
+          translation: response.translation,
+          ipa: response.ipa,
+          simple_pronunciation: response.simple_pronunciation,
+          notes: response.notes,
+          transcript: textToTranslate,
+        });
+      } catch (err) {
+        setError(
+          err instanceof Error ? err.message : "An unexpected error occurred."
+        );
+      } finally {
+        setLoading(false);
+      }
+    },
+    [recognitionLanguageCode, targetLanguage, tone, transcript]
+  );
 
   return (
     <div className="w-full max-w-2xl mx-auto space-y-6">
@@ -84,27 +104,39 @@ export default function VoiceTranslateCard() {
         <div className="flex items-center gap-2 border-b border-slate-100 bg-gradient-to-r from-teal-50 to-cyan-50 px-6 py-4 dark:border-slate-800 dark:from-slate-900 dark:via-slate-900 dark:to-slate-800">
           <Mic2 className="h-5 w-5 text-teal-600 dark:text-cyan-300" />
           <span className="text-sm font-semibold text-slate-700 dark:text-slate-100">
-            Voice Translate Mode
+            Live Voice Dictation
           </span>
         </div>
 
         <div className="space-y-5 p-6">
+          <div className="rounded-2xl border border-slate-200 bg-slate-50/80 px-4 py-3 text-sm leading-relaxed text-slate-600 dark:border-slate-700 dark:bg-slate-950/70 dark:text-slate-300">
+            Live dictation stays in your browser through the Web Speech API.
+            Only the final text is sent to the backend when you click
+            <span className="font-semibold text-slate-800 dark:text-slate-100">
+              {" "}
+              Translate
+            </span>
+            .
+          </div>
+
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             <div className="space-y-1.5">
               <label className="block text-xs font-medium uppercase tracking-wide text-slate-500 dark:text-slate-400">
-                Source Language
+                Source Speech Language
               </label>
               <select
-                value={sourceLanguage}
+                value={recognitionLanguageCode}
                 onChange={(event) => {
-                  setSourceLanguage(event.target.value);
+                  setRecognitionLanguageCode(
+                    event.target.value as LiveSpeechLocale
+                  );
                   resetResult();
                 }}
                 className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm text-slate-800 transition focus:border-transparent focus:outline-none focus:ring-2 focus:ring-teal-400 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-100 dark:focus:ring-cyan-400"
               >
-                {LANGUAGES.map((language) => (
-                  <option key={language} value={language}>
-                    {language}
+                {LIVE_SPEECH_LANGUAGES.map((language) => (
+                  <option key={language.locale} value={language.locale}>
+                    {language.displayName}
                   </option>
                 ))}
               </select>
@@ -112,7 +144,7 @@ export default function VoiceTranslateCard() {
 
             <div className="space-y-1.5">
               <label className="block text-xs font-medium uppercase tracking-wide text-slate-500 dark:text-slate-400">
-                Target Language
+                Target Translation Language
               </label>
               <select
                 value={targetLanguage}
@@ -140,7 +172,10 @@ export default function VoiceTranslateCard() {
                 <button
                   key={value}
                   type="button"
-                  onClick={() => setTone(value)}
+                  onClick={() => {
+                    setTone(value);
+                    resetResult();
+                  }}
                   className={`rounded-full border px-4 py-1.5 text-sm font-medium transition ${
                     tone === value
                       ? "border-teal-600 bg-teal-600 text-white shadow-sm dark:border-cyan-500 dark:bg-cyan-500 dark:text-slate-950"
@@ -153,7 +188,7 @@ export default function VoiceTranslateCard() {
             </div>
           </div>
 
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-end">
+          <div className="grid grid-cols-1 gap-3">
             <VoiceSelector
               value={voice}
               voices={[...TTS_VOICES]}
@@ -165,22 +200,37 @@ export default function VoiceTranslateCard() {
               <input
                 type="checkbox"
                 checked={generateVoiceover}
-                onChange={(event) => setGenerateVoiceover(event.target.checked)}
+                onChange={(event) =>
+                  setGenerateVoiceover(event.target.checked)
+                }
                 className="h-4 w-4 rounded border-slate-300 text-teal-600 focus:ring-teal-500 dark:border-slate-600 dark:bg-slate-900 dark:text-cyan-500"
               />
               Generate voiceover automatically
             </label>
+
+            <label className="flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-700 shadow-sm dark:border-slate-700 dark:bg-slate-950 dark:text-slate-200">
+              <input
+                type="checkbox"
+                checked={autoTranslateAfterStop}
+                onChange={(event) =>
+                  setAutoTranslateAfterStop(event.target.checked)
+                }
+                className="h-4 w-4 rounded border-slate-300 text-teal-600 focus:ring-teal-500 dark:border-slate-600 dark:bg-slate-900 dark:text-cyan-500"
+              />
+              Auto-translate after I stop speaking
+            </label>
           </div>
 
-          <AudioRecorder
-            maxDurationSeconds={MAX_RECORDING_SECONDS}
+          <LiveSpeechInput
+            value={transcript}
+            recognitionLanguageCode={recognitionLanguageCode}
             disabled={loading}
-            onRecordingStart={() => {
-              setRecording(null);
-              resetResult();
+            autoTranslateAfterStop={autoTranslateAfterStop}
+            onChange={handleTranscriptChange}
+            onListeningChange={setIsListening}
+            onAutoTranslate={(finalText) => {
+              void handleTranslate(finalText);
             }}
-            onRecordingReady={handleRecordingReady}
-            onError={(message) => setError(message)}
           />
 
           {error && (
@@ -191,8 +241,10 @@ export default function VoiceTranslateCard() {
 
           <button
             type="button"
-            onClick={handleTranslateSpeech}
-            disabled={loading || !recording}
+            onClick={() => {
+              void handleTranslate();
+            }}
+            disabled={loading || isListening || !transcript.trim()}
             className="flex w-full items-center justify-center gap-2 rounded-xl bg-teal-600 px-6 py-3 text-sm font-semibold text-white shadow-sm transition hover:bg-teal-700 disabled:cursor-not-allowed disabled:bg-teal-300 dark:bg-cyan-500 dark:text-slate-950 dark:hover:bg-cyan-400 dark:disabled:bg-cyan-800"
           >
             {loading ? (
@@ -201,7 +253,7 @@ export default function VoiceTranslateCard() {
                 Translating Speech...
               </>
             ) : (
-              "Translate Speech"
+              "Translate"
             )}
           </button>
         </div>
@@ -215,8 +267,8 @@ export default function VoiceTranslateCard() {
           audioButtonLabel="Play Voiceover"
           audioCaption={
             generateVoiceover
-              ? "Voiceover is generated for the translated text after each voice translation. You can replay it without another API call during this session."
-              : "Voiceover is optional. Click play only when you want audio for the translated text."
+              ? "Voiceover is generated for the translated text after each live dictation result. You can replay it without another API call during this session."
+              : "Voiceover stays optional. Click play only when you want audio for the translated text."
           }
         />
       )}

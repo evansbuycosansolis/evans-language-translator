@@ -1,12 +1,8 @@
 "use client";
 
 import { useState, useCallback, useEffect, useRef } from "react";
-import {
-  generateSpeech,
-  TranslationDisplayResult,
-  TTS_VOICES,
-  TtsVoice,
-} from "@/lib/api";
+import { generateSpeech, TTS_VOICES } from "@/lib/api";
+import type { TranslationDisplayResult, TtsVoice } from "@/lib/api";
 import VoiceSelector from "./VoiceSelector";
 import {
   AudioLines,
