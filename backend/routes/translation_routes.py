@@ -38,5 +38,11 @@ async def translate_text(request: TranslationRequest) -> TranslationResponse:
             status_code=status.HTTP_502_BAD_GATEWAY,
             detail=str(exc),
         ) from exc
+    except Exception as exc:
+        logger.exception("Unexpected translation error")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Unexpected translation failure: {exc}",
+        ) from exc
 
     return phonetic_service.apply_pronunciation_overrides(result, request.target_language)

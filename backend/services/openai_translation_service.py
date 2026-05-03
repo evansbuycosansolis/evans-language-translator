@@ -1,6 +1,7 @@
 import json
 import logging
 from openai import OpenAIError
+from pydantic import ValidationError
 
 from backend.config import OPENAI_TRANSLATION_MODEL
 from backend.models.translation_models import TranslationRequest, TranslationResponse
@@ -58,7 +59,11 @@ def translate(request: TranslationRequest) -> TranslationResponse:
         logger.error("OpenAI API error: %s", exc)
         raise RuntimeError(f"OpenAI API error: {exc}") from exc
 
-    raw_content = completion.choices[0].message.content or ""
+    try:
+        raw_content = completion.choices[0].message.content or ""
+    except (AttributeError, IndexError, TypeError) as exc:
+        logger.error("Unexpected OpenAI response structure: %s", completion)
+        raise ValueError("OpenAI returned an unexpected response structure.") from exc
 
     try:
         data: dict = json.loads(raw_content)
@@ -80,4 +85,8 @@ def translate(request: TranslationRequest) -> TranslationResponse:
         logger.error("OpenAI response missing keys: %s", missing)
         raise ValueError(f"OpenAI response missing required fields: {missing}")
 
-    return TranslationResponse(**{k: str(v) for k, v in data.items() if k in required_keys})
+    try:
+        return TranslationResponse(**{k: str(v) for k, v in data.items() if k in required_keys})
+    except ValidationError as exc:
+        logger.error("OpenAI response failed schema validation: %s", exc)
+        raise ValueError(f"OpenAI response failed schema validation: {exc}") from exc

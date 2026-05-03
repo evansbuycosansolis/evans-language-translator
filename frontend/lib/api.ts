@@ -90,11 +90,22 @@ async function parseErrorResponse(res: Response): Promise<string> {
     const errorBody = await res.json();
     message = errorBody?.detail ?? message;
   } catch {
-    // Ignore JSON parse failure and keep the default message.
+    try {
+      const textBody = (await res.text()).trim();
+      if (textBody) {
+        message = textBody.length > 300 ? `${textBody.slice(0, 300)}...` : textBody;
+      }
+    } catch {
+      // Ignore text parse failure and keep the default message.
+    }
   }
 
   if (res.status === 503) {
     return `${message} Check that the backend server is running and that your OpenAI configuration is valid.`;
+  }
+
+  if (res.status >= 500) {
+    return `${message} Check the backend terminal logs for the full stack trace if this keeps happening.`;
   }
 
   return message;
