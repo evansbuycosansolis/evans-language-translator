@@ -146,6 +146,7 @@ Frontend URL:
 ## Vercel Deployment
 
 This repository now includes a root `vercel.json` using Vercel Services so the Next.js frontend and FastAPI backend deploy as one Vercel project.
+It also includes a root `requirements.txt` that points to `backend/requirements.txt`, which helps Vercel's Python runtime install the backend dependencies during deployment.
 
 Service layout:
 
