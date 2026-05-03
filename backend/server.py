@@ -7,6 +7,7 @@ working even when the file is executed directly.
 """
 
 import sys
+import types
 from pathlib import Path
 
 CURRENT_DIR = Path(__file__).resolve().parent
@@ -23,4 +24,9 @@ for candidate in CANDIDATE_PATHS:
 try:
     from backend.main import app
 except ModuleNotFoundError:
-    from main import app
+    package = types.ModuleType("backend")
+    package.__path__ = [str(CURRENT_DIR)]
+    package.__file__ = str(CURRENT_DIR / "__init__.py")
+    sys.modules["backend"] = package
+
+    from backend.main import app
