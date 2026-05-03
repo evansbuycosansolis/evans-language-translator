@@ -8,6 +8,8 @@ the codebase.
 """
 from typing import Optional
 
+from backend.models.translation_models import TranslationResponse
+
 
 def get_ipa(text: str, language: str) -> Optional[str]:
     """
@@ -27,3 +29,18 @@ def get_simple_pronunciation(text: str, language: str) -> Optional[str]:
     Currently returns None (fall back to OpenAI output).
     """
     return None
+
+
+def apply_pronunciation_overrides(
+    result: TranslationResponse,
+    target_language: str,
+) -> TranslationResponse:
+    dedicated_ipa = get_ipa(result.translation, target_language)
+    if dedicated_ipa:
+        result.ipa = dedicated_ipa
+
+    dedicated_pronunciation = get_simple_pronunciation(result.translation, target_language)
+    if dedicated_pronunciation:
+        result.simple_pronunciation = dedicated_pronunciation
+
+    return result

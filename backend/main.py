@@ -3,6 +3,9 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from backend.routes.translation_routes import router as translation_router
+from backend.routes.transcription_routes import router as transcription_router
+from backend.routes.speech_translate_routes import router as speech_translate_router
+from backend.routes.tts_routes import router as tts_router
 
 logging.basicConfig(
     level=logging.INFO,
@@ -13,9 +16,9 @@ app = FastAPI(
     title="Evans Language Translator API",
     description=(
         "AI-powered language translator with IPA phonetic transcription "
-        "and pronunciation guidance."
+        "guidance, speech transcription, and text-to-speech support."
     ),
-    version="1.0.0",
+    version="1.1.0",
 )
 
 # Allow the Next.js dev server and any production origin.
@@ -34,6 +37,9 @@ app.add_middleware(
 )
 
 app.include_router(translation_router, prefix="/api")
+app.include_router(transcription_router, prefix="/api")
+app.include_router(speech_translate_router, prefix="/api")
+app.include_router(tts_router, prefix="/api")
 
 
 @app.get("/health", tags=["health"])

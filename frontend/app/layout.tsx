@@ -13,7 +13,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="en">
+    <html lang="en" suppressHydrationWarning>
       <head>
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link
@@ -24,6 +24,20 @@ export default function RootLayout({
         <link
           href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap"
           rel="stylesheet"
+        />
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `
+              (function() {
+                try {
+                  var storedTheme = localStorage.getItem("evans-theme");
+                  document.documentElement.classList.toggle("dark", storedTheme === "dark");
+                } catch (error) {
+                  document.documentElement.classList.remove("dark");
+                }
+              })();
+            `,
+          }}
         />
       </head>
       <body className="antialiased">{children}</body>

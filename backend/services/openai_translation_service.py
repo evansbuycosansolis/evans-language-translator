@@ -1,25 +1,12 @@
 import json
 import logging
-from openai import OpenAI, OpenAIError
+from openai import OpenAIError
 
-from backend.config import OPENAI_API_KEY, OPENAI_MODEL
+from backend.config import OPENAI_TRANSLATION_MODEL
 from backend.models.translation_models import TranslationRequest, TranslationResponse
+from backend.services.openai_client import get_openai_client
 
 logger = logging.getLogger(__name__)
-
-_client: OpenAI | None = None
-
-
-def _get_client() -> OpenAI:
-    global _client
-    if _client is None:
-        if not OPENAI_API_KEY:
-            raise RuntimeError(
-                "OPENAI_API_KEY is not configured. "
-                "Set it in your .env file or as an environment variable."
-            )
-        _client = OpenAI(api_key=OPENAI_API_KEY)
-    return _client
 
 
 SYSTEM_PROMPT = (
@@ -38,7 +25,7 @@ SYSTEM_PROMPT = (
 
 def translate(request: TranslationRequest) -> TranslationResponse:
     """Call OpenAI to translate text and return a structured response."""
-    client = _get_client()
+    client = get_openai_client()
 
     tone_instruction = (
         f" Use a {request.tone} tone." if request.tone and request.tone != "neutral" else ""
@@ -52,14 +39,14 @@ def translate(request: TranslationRequest) -> TranslationResponse:
 
     logger.info(
         "Calling OpenAI model=%s src=%s tgt=%s",
-        OPENAI_MODEL,
+        OPENAI_TRANSLATION_MODEL,
         request.source_language,
         request.target_language,
     )
 
     try:
         completion = client.chat.completions.create(
-            model=OPENAI_MODEL,
+            model=OPENAI_TRANSLATION_MODEL,
             messages=[
                 {"role": "system", "content": SYSTEM_PROMPT},
                 {"role": "user", "content": user_message},

@@ -1,6 +1,5 @@
 import logging
 from fastapi import APIRouter, HTTPException, status
-from pydantic import ValidationError
 
 from backend.models.translation_models import TranslationRequest, TranslationResponse
 from backend.services import openai_translation_service, phonetic_service
@@ -40,15 +39,4 @@ async def translate_text(request: TranslationRequest) -> TranslationResponse:
             detail=str(exc),
         ) from exc
 
-    # Override IPA / pronunciation with dedicated phonetic service if available
-    dedicated_ipa = phonetic_service.get_ipa(result.translation, request.target_language)
-    if dedicated_ipa:
-        result.ipa = dedicated_ipa
-
-    dedicated_pronunciation = phonetic_service.get_simple_pronunciation(
-        result.translation, request.target_language
-    )
-    if dedicated_pronunciation:
-        result.simple_pronunciation = dedicated_pronunciation
-
-    return result
+    return phonetic_service.apply_pronunciation_overrides(result, request.target_language)
