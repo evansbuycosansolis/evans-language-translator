@@ -153,6 +153,9 @@ Service layout:
 - frontend: `frontend/` mounted at `/`
 - backend: `backend/server.py` mounted at `/backend`
 
+The backend service also explicitly includes `backend/**` during deployment so
+the FastAPI entrypoint can import the package modules correctly on Vercel.
+
 In the Vercel dashboard:
 
 1. Keep the project Root Directory as `./`.

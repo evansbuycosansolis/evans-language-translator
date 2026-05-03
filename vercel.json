@@ -9,7 +9,10 @@
     "backend": {
       "entrypoint": "backend/server.py",
       "routePrefix": "/backend",
-      "framework": "fastapi"
+      "framework": "fastapi",
+      "includeFiles": [
+        "backend/**"
+      ]
     }
   }
 }
