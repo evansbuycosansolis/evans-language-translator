@@ -150,7 +150,7 @@ This repository now includes a root `vercel.json` using Vercel Services so the N
 Service layout:
 
 - frontend: `frontend/` mounted at `/`
-- backend: `backend/main.py` mounted at `/backend`
+- backend: `backend/server.py` mounted at `/backend`
 
 In the Vercel dashboard:
 

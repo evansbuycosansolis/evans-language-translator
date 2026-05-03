@@ -1,6 +1,14 @@
 import logging
+import sys
+from pathlib import Path
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+
+# Allow this module to run when executed directly by deployment platforms
+# that invoke the file path instead of importing `backend.main` as a package.
+PROJECT_ROOT = Path(__file__).resolve().parents[1]
+if str(PROJECT_ROOT) not in sys.path:
+    sys.path.insert(0, str(PROJECT_ROOT))
 
 from backend.routes.translation_routes import router as translation_router
 from backend.routes.transcription_routes import router as transcription_router
