@@ -151,7 +151,7 @@ It also includes a root `requirements.txt` that points to `backend/requirements.
 Service layout:
 
 - frontend: `frontend/` mounted at `/`
-- backend: `backend/server.py` mounted at `/backend`
+- backend: `server.py` mounted at `/backend`
 
 The backend service also explicitly includes `backend/**` during deployment so
 the FastAPI entrypoint can import the package modules correctly on Vercel.

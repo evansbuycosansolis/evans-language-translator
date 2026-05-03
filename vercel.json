@@ -7,7 +7,7 @@
       "framework": "nextjs"
     },
     "backend": {
-      "entrypoint": "backend/server.py",
+      "entrypoint": "server.py",
       "routePrefix": "/backend",
       "framework": "fastapi",
       "includeFiles": [
