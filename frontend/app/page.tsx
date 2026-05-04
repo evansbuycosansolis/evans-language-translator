@@ -59,7 +59,7 @@ export default function Home() {
             }`}
           >
             <Mic2 className="h-4 w-4" />
-            Live Voice Dictation
+            Voice Translation
           </button>
         </div>
       </section>

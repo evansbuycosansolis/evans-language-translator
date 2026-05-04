@@ -35,6 +35,28 @@ class TranscriptionResponse(BaseModel):
     source_language: Optional[str] = None
 
 
+class TranscriptionFormData(BaseModel):
+    source_language: Optional[str] = None
+    profile_context: Optional[str] = None
+
+    @field_validator("source_language")
+    @classmethod
+    def source_language_must_be_supported(cls, value: Optional[str]) -> Optional[str]:
+        return normalize_optional_supported_language(value)
+
+    @field_validator("profile_context")
+    @classmethod
+    def profile_context_must_be_reasonable(cls, value: Optional[str]) -> Optional[str]:
+        if value is None:
+            return None
+
+        cleaned = value.strip()
+        if not cleaned:
+            return None
+
+        return cleaned[:1200]
+
+
 class SpeechTranslationResponse(BaseModel):
     source_language: str
     target_language: str
@@ -52,6 +74,7 @@ class SpeechTranslateFormData(BaseModel):
     tone: str = "neutral"
     generate_voiceover: bool = False
     voice: str = TTS_DEFAULT_VOICE
+    profile_context: Optional[str] = None
 
     @field_validator("source_language")
     @classmethod
@@ -72,3 +95,15 @@ class SpeechTranslateFormData(BaseModel):
     @classmethod
     def voice_must_be_supported(cls, value: str) -> str:
         return normalize_supported_voice(value)
+
+    @field_validator("profile_context")
+    @classmethod
+    def profile_context_must_be_reasonable(cls, value: Optional[str]) -> Optional[str]:
+        if value is None:
+            return None
+
+        cleaned = value.strip()
+        if not cleaned:
+            return None
+
+        return cleaned[:1200]

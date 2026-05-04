@@ -1,6 +1,6 @@
 # Evans Language Translator
 
-AI-powered translation with pronunciation guidance, live speech dictation, and optional text-to-speech playback.
+AI-powered translation with pronunciation guidance, live browser dictation, high-accuracy speech transcription, and optional text-to-speech playback.
 
 ## Overview
 
@@ -8,8 +8,10 @@ Evans Language Translator is a full-stack MVP that lets users:
 
 - translate typed text
 - dictate speech live in the browser with the Web Speech API
+- switch to a higher-accuracy recorded-speech flow powered by the backend transcription model
 - edit the live transcript before sending it to the backend
 - generate translations, IPA, pronunciation guidance, and usage notes
+- save a local voice profile with accent notes, names, and phrases to improve high-accuracy transcription prompts
 - optionally play translated voiceover audio
 
 The frontend is built with Next.js and the backend uses FastAPI plus the OpenAI API. The OpenAI API key stays on the backend only and is never exposed to the browser.
@@ -17,13 +19,14 @@ The frontend is built with Next.js and the backend uses FastAPI plus the OpenAI 
 ## Features
 
 - Text Translate mode for typed input
-- Live Voice Dictation mode using the browser Web Speech API
+- Voice Translation mode with live browser dictation and high-accuracy recorded dictation
 - Translation tone selection: `neutral`, `formal`, `informal`
 - IPA transcription and simple pronunciation guidance
 - Grammar and usage notes
 - On-demand text-to-speech playback
 - Optional automatic voiceover after a translation result appears
 - Optional auto-translate after dictation stops
+- Local browser voice profile storage for names, phrases, and accent notes
 - Dark mode toggle
 - In-browser audio caching so replay does not re-call TTS during the current session
 
@@ -74,11 +77,13 @@ evans-language-translator/
 │   │   ├── ThemeToggle.tsx
 │   │   ├── TranslationResult.tsx
 │   │   ├── TranslatorCard.tsx
+│   │   ├── VoiceProfileCard.tsx
 │   │   ├── VoiceSelector.tsx
 │   │   └── VoiceTranslateCard.tsx
 │   └── lib/
 │       ├── api.ts
-│       └── options.ts
+│       ├── options.ts
+│       └── voice-profile.ts
 └── README.md
 ```
 
@@ -172,14 +177,31 @@ After deployment, your backend endpoints will live under the same domain, for ex
 - `/backend/api/translate`
 - `/backend/api/text-to-speech`
 
-## Live Speech-to-Text Translator
+## Voice Translation Modes
 
-Live Voice Dictation uses the browser Web Speech API, not the backend, for real-time speech recognition.
+Voice Translation now includes two speech-input options.
 
+- `Live Browser Dictation` uses the browser Web Speech API for real-time recognition.
+- `High Accuracy Dictation` records a short clip first, then sends one finished file to the backend transcription model.
 - Works best in Chrome or Edge.
 - No live audio is streamed to FastAPI or OpenAI.
 - Only the final text is sent to the backend when the user clicks `Translate`.
+- High Accuracy Dictation uploads audio only after recording stops.
 - Translation and text-to-speech still require `OPENAI_API_KEY` on the backend.
+
+### My Voice Profile
+
+The app also includes a local `My Voice Profile` panel.
+
+- It saves only in the current browser with `localStorage`.
+- It lets the user store:
+  - preferred speech language
+  - accent or region notes
+  - common names
+  - recurring vocabulary or phrases
+  - one sample calibration phrase
+- That profile is added to the backend transcription prompt for High Accuracy Dictation.
+- It does not fine-tune or permanently retrain the OpenAI model.
 
 ### Supported Live Dictation Languages for MVP
 
@@ -196,23 +218,37 @@ Live Voice Dictation uses the browser Web Speech API, not the backend, for real-
 - Hiligaynon
 - Cebuano
 
-### Live Dictation Flow
+### Live Browser Dictation Flow
 
-1. Switch to `Live Voice Dictation`.
-2. Click `Allow Microphone Access`.
-3. Choose a microphone if multiple inputs are available.
-4. Choose a source speech language and target translation language.
-5. Click `Start Listening`.
-6. Speak into the microphone and watch the text update live.
-7. Click `Stop Listening`.
-8. Edit the transcript if needed.
-9. Click `Translate`.
-10. Review the translation, IPA, pronunciation guide, and notes.
-11. Click `Play Voiceover` if you want translated audio.
+1. Switch to `Voice Translation`.
+2. Keep `Live Browser Dictation` selected.
+3. Click `Allow Microphone Access`.
+4. Choose a microphone if multiple inputs are available.
+5. Choose a source speech language and target translation language.
+6. Click `Start Listening`.
+7. Speak into the microphone and watch the text update live.
+8. Click `Stop Listening`.
+9. Edit the transcript if needed.
+10. Click `Translate`.
+11. Review the translation, IPA, pronunciation guide, and notes.
+12. Click `Play Voiceover` if you want translated audio.
+
+### High Accuracy Dictation Flow
+
+1. Switch to `Voice Translation`.
+2. Select `High Accuracy Dictation`.
+3. Save an optional `My Voice Profile` for better names, accent notes, and recurring vocabulary.
+4. Choose the source language, target language, and tone.
+5. Click `Start Recording`.
+6. Speak into the microphone, then click `Stop Recording`.
+7. Review the local audio preview.
+8. Click `Transcribe & Translate`.
+9. Review the transcript, translation, IPA, pronunciation guide, and notes.
+10. Click `Play Voiceover` if you want translated audio.
 
 Optional behavior:
 
-- Enable `Auto-translate after I stop speaking` to run one translation request after dictation ends.
+- Enable `Auto-translate after I stop speaking` to run one translation request after live dictation ends.
 - Enable `Generate voiceover automatically` to generate translated audio as soon as a translation result appears.
 - Use the microphone dropdown to prefer a specific audio input when the browser supports track-based speech recognition startup.
 
@@ -295,6 +331,7 @@ Request: `multipart/form-data`
 
 - `file`: audio upload
 - `source_language`: optional language hint
+- `profile_context`: optional speaker-profile prompt context
 
 Response:
 
@@ -317,6 +354,7 @@ Request: `multipart/form-data`
 - `tone`: `neutral`, `formal`, or `informal`
 - `generate_voiceover`: `true` or `false`
 - `voice`: selected voice name
+- `profile_context`: optional speaker-profile prompt context
 
 Response:
 
@@ -362,12 +400,12 @@ The backend still supports these uploaded audio MIME types for recorded-audio wo
 4. Enter text, choose languages, and click `Translate`.
 5. Optionally click `Play Pronunciation`.
 
-### Live Voice Dictation
+### Voice Translation
 
 1. Start the backend on `127.0.0.1:8010`.
 2. Start the frontend on `localhost:3000`.
-3. Open `Live Voice Dictation`.
-4. Use Chrome or Edge.
+3. Open `Voice Translation`.
+4. For fast dictation, keep `Live Browser Dictation` selected and use Chrome or Edge.
 5. Click `Allow Microphone Access`.
 6. If several microphones appear, choose the one you want to try first.
 7. Choose `English`, `French`, or `Spanish` as the source speech language.
@@ -377,6 +415,7 @@ The backend still supports these uploaded audio MIME types for recorded-audio wo
 11. Click `Translate`.
 12. Review the translation, IPA, pronunciation guide, and notes.
 13. Click `Play Voiceover` or enable automatic voiceover.
+14. For better recognition, switch to `High Accuracy Dictation`, optionally save `My Voice Profile`, then record and click `Transcribe & Translate`.
 
 ## Troubleshooting
 
@@ -399,9 +438,15 @@ The backend still supports these uploaded audio MIME types for recorded-audio wo
 
 ### Wrong microphone is being used
 
-- Open `Live Voice Dictation` and click `Allow Microphone Access` to reveal available microphones.
+- Open `Voice Translation` and click `Allow Microphone Access` to reveal available microphones.
 - Choose a different microphone from the dropdown and start listening again.
 - If Chrome or Edge still uses the wrong input, switch the browser or system default microphone and retry.
+
+### High Accuracy Dictation is still missing words
+
+- Save a `My Voice Profile` with names, vocabulary, accent notes, and a short sample phrase.
+- Keep recordings short and close to the microphone.
+- Choose the correct source language before clicking `Transcribe & Translate`.
 
 ### Failed to fetch or backend unreachable
 

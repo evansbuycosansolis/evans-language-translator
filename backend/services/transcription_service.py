@@ -35,6 +35,7 @@ def transcribe_audio(
     content_type: str | None,
     audio_bytes: bytes,
     source_language: str | None = None,
+    profile_context: str | None = None,
 ) -> TranscriptionResult:
     normalized_filename = _normalize_filename(filename, content_type)
     normalized_content_type = _normalize_content_type(content_type, normalized_filename)
@@ -48,10 +49,9 @@ def transcribe_audio(
             f"Audio file is too large. Maximum supported size is {max_size_mb:.0f} MB."
         )
 
-    prompt = (
-        f"The speaker is using {source_language}. Preserve punctuation and casing."
-        if source_language
-        else "Preserve punctuation and casing."
+    prompt = _build_transcription_prompt(
+        source_language=source_language,
+        profile_context=profile_context,
     )
 
     request_args = {
@@ -81,6 +81,29 @@ def transcribe_audio(
         transcript=normalized_transcript,
         source_language=source_language,
     )
+
+
+def _build_transcription_prompt(
+    *,
+    source_language: str | None,
+    profile_context: str | None,
+) -> str:
+    prompt_parts = []
+
+    if source_language:
+        prompt_parts.append(
+            f"The speaker is using {source_language}. Preserve punctuation and casing."
+        )
+    else:
+        prompt_parts.append("Preserve punctuation and casing.")
+
+    if profile_context:
+        prompt_parts.append(
+            "Use this speaker profile to improve recognition of names, accent patterns, and recurring phrases: "
+            f"{profile_context.strip()}"
+        )
+
+    return " ".join(prompt_parts)
 
 
 def _normalize_filename(filename: str | None, content_type: str | None) -> str:

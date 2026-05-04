@@ -27,6 +27,7 @@ async def speech_translate(
     tone: str = Form(default="neutral"),
     generate_voiceover: bool = Form(default=False),
     voice: str = Form(default="coral"),
+    profile_context: str | None = Form(default=None),
 ) -> SpeechTranslationResponse:
     if file is None:
         raise HTTPException(
@@ -41,6 +42,7 @@ async def speech_translate(
             tone=tone,
             generate_voiceover=generate_voiceover,
             voice=voice,
+            profile_context=profile_context,
         )
     except ValidationError as exc:
         detail = exc.errors()[0]["msg"] if exc.errors() else "Invalid speech translation request."
@@ -56,6 +58,7 @@ async def speech_translate(
             content_type=file.content_type,
             audio_bytes=audio_bytes,
             source_language=form_data.source_language,
+            profile_context=form_data.profile_context,
         )
     except ValueError as exc:
         logger.error("Speech translate validation error: %s", exc)

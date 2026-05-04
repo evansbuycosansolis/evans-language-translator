@@ -63,6 +63,7 @@ export interface AudioUploadPayload {
   audio: Blob;
   filename?: string;
   source_language?: string;
+  profile_context?: string;
 }
 
 export interface SpeechTranslatePayload {
@@ -73,6 +74,7 @@ export interface SpeechTranslatePayload {
   tone?: string;
   generate_voiceover?: boolean;
   voice?: TtsVoice;
+  profile_context?: string;
 }
 
 function buildNetworkErrorMessage(action: string): string {
@@ -201,6 +203,10 @@ export async function transcribeAudio(
     formData.append("source_language", payload.source_language);
   }
 
+  if (payload.profile_context) {
+    formData.append("profile_context", payload.profile_context);
+  }
+
   return postFormData<TranscriptionResponse>(
     "/api/transcribe",
     formData,
@@ -225,6 +231,10 @@ export async function translateSpeech(
     payload.generate_voiceover ? "true" : "false"
   );
   formData.append("voice", payload.voice ?? "coral");
+
+  if (payload.profile_context) {
+    formData.append("profile_context", payload.profile_context);
+  }
 
   return postFormData<SpeechTranslationResponse>(
     "/api/speech-translate",
