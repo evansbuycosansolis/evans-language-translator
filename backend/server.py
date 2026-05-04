@@ -1,9 +1,11 @@
 """
 Vercel-friendly FastAPI entrypoint.
 
-Vercel's FastAPI runtime works best with `server.py` / `app.py` style entrypoints.
-This file also bootstraps the repository root onto `sys.path` so imports keep
-working even when the file is executed directly.
+When the `backend/` directory is used as the Vercel service entrypoint, this
+file becomes the service-root `server.py` that Vercel expects for FastAPI.
+It also bootstraps a lightweight `backend` package so the existing
+`backend.*` imports continue to work when the service is loaded from inside the
+`backend/` directory itself.
 """
 
 import sys
@@ -11,22 +13,13 @@ import types
 from pathlib import Path
 
 CURRENT_DIR = Path(__file__).resolve().parent
-CANDIDATE_PATHS = [
-    CURRENT_DIR,
-    CURRENT_DIR.parent,
-]
+current_dir_str = str(CURRENT_DIR)
+if current_dir_str not in sys.path:
+    sys.path.insert(0, current_dir_str)
 
-for candidate in CANDIDATE_PATHS:
-    candidate_str = str(candidate)
-    if candidate_str not in sys.path:
-        sys.path.insert(0, candidate_str)
+package = types.ModuleType("backend")
+package.__path__ = [current_dir_str]
+package.__file__ = str(CURRENT_DIR / "__init__.py")
+sys.modules.setdefault("backend", package)
 
-try:
-    from backend.main import app
-except ModuleNotFoundError:
-    package = types.ModuleType("backend")
-    package.__path__ = [str(CURRENT_DIR)]
-    package.__file__ = str(CURRENT_DIR / "__init__.py")
-    sys.modules["backend"] = package
-
-    from backend.main import app
+from main import app
