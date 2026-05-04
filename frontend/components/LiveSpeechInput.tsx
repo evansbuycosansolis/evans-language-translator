@@ -380,14 +380,20 @@ export default function LiveSpeechInput({
     const selectedMicrophone = microphones.find(
       (device) => device.deviceId === selectedMicrophoneId
     );
+    const hadExistingTranscript = valueRef.current.trim().length > 0;
 
     recognition.continuous = true;
     recognition.interimResults = true;
     recognition.lang = recognitionLanguageCode;
     recognition.maxAlternatives = 1;
 
+    if (hadExistingTranscript) {
+      onChange("");
+      valueRef.current = "";
+    }
+
     recognitionRef.current = recognition;
-    baseTextRef.current = valueRef.current.trim();
+    baseTextRef.current = "";
     finalizedTextRef.current = "";
     lastErrorRef.current = null;
     setInterimTranscript("");
